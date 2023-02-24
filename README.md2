@@ -1,0 +1,56 @@
+https://www.jianshu.com/p/6b3113580c44
+
+skynet部署protobuf，用云大的pbc库
+
+问题：
+使用后发现当一个服务调用register_file注册了.pb文件后，其他服务无法进行编码解码
+
+原因：
+因为skynet每个服务都有一个lua vm，protobuf库会为每个库单独分配一个pbc_env环境
+
+解决思路：
+使用一个唯一的pbc_env环境
+
+解决方法:
+在pbc-lua53.c加入如下代码，定义一个全局变量存放环境，加入get和set接口
+
+static struct pbc_env * global_env = NULL;
+
+static int
+_global_env_set(lua_State *L){
+    struct pbc_env * env = (struct pbc_env *)checkuserdata(L,1);
+    global_env = env;
+    return 0;
+}
+
+static int
+_global_env_get(lua_State *L){
+    if(global_env){
+        lua_pushlightuserdata(L, global_env);
+        return 1;
+    }
+    return 0;
+}
+luaopen_protobuf_c方法别忘记加，make编译出protobuf.so，放入你的skynet/luaclib/下
+
+打开protobuf.lua 把22-29行如下代码
+
+P = debug.getregistry().PROTOBUF_ENV
+
+if P then
+    GC = c._gc()
+else
+    P= c._env_new()
+    GC = c._gc(P)
+end
+替换成
+
+P = c._global_env_get()
+if P then
+    GC = c._gc()
+else
+    P = c._env_new()
+    GC = c._gc(P)
+    c._global_env_set(P)
+end
+这样不同服务require "protobuf" 使用的都是同一个pbc_env环境了，需要注意在编码解码前，协议注册过

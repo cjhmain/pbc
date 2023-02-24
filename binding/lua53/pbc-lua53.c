@@ -26,6 +26,8 @@ extern "C" {
 
 #include "pbc.h"
 
+static struct pbc_env * global_env = NULL;
+
 static inline void *
 checkuserdata(lua_State *L, int index) {
 	void * ud = lua_touserdata(L,index);
@@ -868,6 +870,24 @@ _add_rmessage(lua_State *L) {
 	return 0;
 }
 
+///////// skynet lua vm 共享pbc
+static int
+_global_env_set(lua_State *L){
+    struct pbc_env * env = (struct pbc_env *)checkuserdata(L,1);
+    global_env = env;
+    return 0;
+}
+
+static int
+_global_env_get(lua_State *L){
+    if(global_env){
+        lua_pushlightuserdata(L, global_env);
+        return 1;
+    }
+    return 0;
+}
+/////////
+
 int
 luaopen_protobuf_c(lua_State *L) {
 	luaL_Reg reg[] = {
@@ -900,6 +920,8 @@ luaopen_protobuf_c(lua_State *L) {
 		{"_add_pattern", _add_pattern },
 		{"_add_rmessage", _add_rmessage },
 		{"_env_enum_id", _env_enum_id},
+        {"_global_env_set", _global_env_set},
+        {"_global_env_get", _global_env_get},
 		{NULL,NULL},
 	};
 

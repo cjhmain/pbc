@@ -19,14 +19,25 @@ local _pattern_cache = {}
 
 local P,GC
 
-P = debug.getregistry().PROTOBUF_ENV
+-- P = debug.getregistry().PROTOBUF_ENV
 
+-- if P then
+-- 	GC = c._gc()
+-- else
+-- 	P= c._env_new()
+-- 	GC = c._gc(P)
+-- end
+
+-------- skynet lua vm 共享pbc
+P = c._global_env_get()
 if P then
-	GC = c._gc()
+    GC = c._gc()
 else
-	P= c._env_new()
-	GC = c._gc(P)
+    P = c._env_new()
+    GC = c._gc(P)
+    c._global_env_set(P)
 end
+--------
 
 M.GC = GC
 
